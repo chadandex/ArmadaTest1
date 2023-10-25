@@ -55,6 +55,7 @@ def get_total_login_time(df, input_id):
         return print(f"Sorry, no user found under id: {input_id}")
 
     if len(single_user_list) < 2:
+        # get last recorded timestamp to use for missing logout
         single_user_list.append(df['timestamp'].max())
 
     td = np.ptp(single_user_list)
@@ -65,12 +66,15 @@ def get_total_login_time(df, input_id):
 
 def get_total_all(df):
     df_filtered = df.groupby('user_id').apply(login_logout_df_filter).reset_index(level=1, drop=True)
+    # add new 'elapsed' column to df for total for each user
     df_filtered['elapsed'] = (df_filtered.logout - df_filtered.login) / pd.Timedelta(hours=1)
 
     df_no_logouts = handle_no_logouts(df_filtered)
 
     elapsed_filt = (df_filtered['elapsed'] == 0.0)
+    # remove 0.0 hour people from initial df
     df_filtered = df_filtered.drop(index=df_filtered[elapsed_filt].index)
+    # append new 'no logout' people back to df
     df_filtered = df_filtered.append(df_no_logouts)
     df_filtered = df_filtered.sort_values(by=['elapsed'], ascending=False)
 
@@ -81,6 +85,7 @@ def handle_no_logouts(df):
     """ Create a new dataframe with user_id's having no logout.
         Change their logout to last time recorded and determine new elapsed time """
     elapsed_filt = (df['elapsed'] == 0.0)
+
     result = df[elapsed_filt]
     max_time = df['logout'].max()
     result['logout'] = max_time
